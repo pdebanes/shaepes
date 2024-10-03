@@ -78,6 +78,11 @@ colnames(combined_data)
 
 combined_data<-merge(combined_data, ATLAS_MT_2024, by="TERRITOIRE", all.x=T)
 
+combined_data <- combined_data %>%
+  mutate(across(contains("Score"), ~ as.numeric(as.character(.))))
+
+
+
 # A001 -------------------------------------------------------
 
 total <- combined_data|>filter(`Score d'accès humanitaire`>3)
@@ -296,15 +301,230 @@ write.xlsx(temp_average_year, "SD_PAM_Province.xlsx", overwrite = T)
 
 #  S001 S002 S003 ---------------------------------------------------------
 
+## S001 ----
 colnames(combined_data)
 
 table(combined_data$`Categorie d'incident`)
 table(combined_data$`Type d'incident`)
 table(combined_data$`Cible (categorie)`)
 
+
+
 temp<-combined_data |> filter(`Cible (categorie)`=="Acteur HDP") |> group_by(Quarter, PROVINCE, TERRITOIRE) |> reframe(count=n())
-temp<-temp |>  group_by(Quarter, PROVINCE) |> reframe(mean=mean(count, na.rm=T))
+
+# try<-combined_data |> filter(TERRITOIRE=="Nyiragongo" & Quarter=="T1_2022" )
 
 # Pour le threshold: en fonction du nombre d'incident total ? 
+total_incidents_territoire<-combined_data |>
+  filter(`Score d'accès humanitaire`>3)|> 
+  group_by(Quarter, PROVINCE, TERRITOIRE) |> 
+  reframe(total_incidents=n())
+
+temp2<-merge(temp,total_incidents_territoire, by=c("Quarter", "PROVINCE", "TERRITOIRE"), all.x=T )
+
+summary(temp2)
+
+# Convert count and total_incidents_territoire to numeric if needed
+temp2 <- temp2 %>%
+  mutate(
+    count = as.numeric(as.character(count)),  # Ensure count is numeric
+    total_incidents = as.numeric(as.character(total_incidents))  # Ensure total_incidents_territoire is numeric
+  )
+
+# Now calculate the ratio
+temp_total <- temp2 %>%
+  mutate(ratio = count / total_incidents)
+
+reset_s001<-temp_total |> filter(TERRITOIRE %in% c("Fizi", "Uvira", "Irumu") & Quarter=="T2_2024")
+
+tryuvira<-combined_data |> filter(TERRITOIRE=="Uvira" & ANNEE=="2024") |>  select(c(1:5), `Type d'incident`, Quarter)
+
+temp_total_province<-temp_total|> 
+  group_by(Quarter, PROVINCE) |> 
+  reframe(mean=mean(ratio, na.rm=T))
+temp_total_province
+
+table(temp_total$Quarter)
+
+temp_total_province <- temp_total_province %>%
+  mutate(Quarter = factor(Quarter, levels = c("T1_2022", "T2_2022","T3_2022", "T4_2022", "T1_2023", "T2_2023","T3_2023", "T4_2023",
+                                              "T1_2024", "T2_2024", "T3_2024")))
 
 
+temp_total_province_t<-temp_total_province |> filter(!Quarter %in% c("T1_2022", "T2_2022"))
+# Create the ordered bar plot
+p_bar <- ggplot(temp_total_province_t, aes(x = Quarter, y = mean, fill = PROVINCE)) +
+  geom_bar(stat = "identity", position = position_dodge()) +  # Use position_dodge for side-by-side bars
+  labs(title =  paste("# incidents sur les HDP / # incidents fort impact", "\n Moyenne par Province et Trimestre"),
+       x = "Trimestre",
+       y = "Moyenne") +
+  scale_fill_viridis_d() +  # Use viridis color scale
+  theme_minimal() +  # Minimal theme for a clean look
+  theme(
+    panel.grid.major = element_line(color = "gray90"),  # Customize major grid lines
+    panel.grid.minor = element_blank(),  # Remove minor grid lines
+    panel.border = element_blank(),  # Remove panel border
+    axis.line = element_line(color = "black"),  # Add axis lines for clarity
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotate x-axis text for better readability
+  )
+
+# Print the bar plot
+print(p_bar)
+
+ggsave("S001_barplot_mean_by_province_and_quarter.png", plot = p_bar, width = 10, height = 6, bg="white")
+
+summary(temp_total_province)
+
+## S002 ----
+
+table(combined_data$`Type d'incident`)
+
+temp<-combined_data |> 
+  filter(`Type d'incident`=="Taxe illégale et Extorsion" & `Auteur (categorie)` 
+         %in% c("Forces armées nationales", "Acteur armé non-étatique",
+                "Forces armées internationales"))|>
+  group_by(Quarter, PROVINCE, TERRITOIRE) |> 
+  reframe(count=n())
+
+
+# Pour le threshold: en fonction du nombre d'incident total ? 
+total_incidents_territoire<-combined_data |>
+  # filter(`Score d'accès humanitaire`>=3)|>
+  group_by(Quarter, PROVINCE, TERRITOIRE) |> 
+  reframe(total_incidents=n())
+
+temp2<-merge(temp,total_incidents_territoire, by=c("Quarter", "PROVINCE", "TERRITOIRE"), all.x=T )
+
+summary(temp2)
+
+# Convert count and total_incidents_territoire to numeric if needed
+temp2 <- temp2 %>%
+  mutate(
+    count = as.numeric(as.character(count)),  # Ensure count is numeric
+    total_incidents = as.numeric(as.character(total_incidents))  # Ensure total_incidents_territoire is numeric
+  )
+
+# Now calculate the ratio
+temp_total <- temp2 %>%
+  mutate(ratio = count / total_incidents)
+
+reset_s002<-temp_total |> filter(TERRITOIRE %in% c("Fizi", "Uvira", "Irumu") & Quarter=="T2_2024")
+
+
+temp_total_province<-temp_total|> 
+  group_by(Quarter, PROVINCE) |> 
+  reframe(mean=mean(ratio, na.rm=T))
+temp_total_province
+
+table(temp_total$Quarter)
+
+temp_total_province <- temp_total_province %>%
+  mutate(Quarter = factor(Quarter, levels = c("T1_2022", "T2_2022","T3_2022", "T4_2022", "T1_2023", "T2_2023","T3_2023", "T4_2023",
+                                              "T1_2024", "T2_2024", "T3_2024")))
+
+
+temp_total_province_t<-temp_total_province |> filter(!Quarter %in% c("T1_2022", "T2_2022"))
+# Create the ordered bar plot
+p_bar <- ggplot(temp_total_province_t, aes(x = Quarter, y = mean, fill = PROVINCE)) +
+  geom_bar(stat = "identity", position = position_dodge()) +  # Use position_dodge for side-by-side bars
+  labs(title =  paste("S002" ,  "\n Moyenne par Province et Trimestre"),
+       x = "Trimestre",
+       y = "Moyenne") +
+  scale_fill_viridis_d() +  # Use viridis color scale
+  theme_minimal() +  # Minimal theme for a clean look
+  theme(
+    panel.grid.major = element_line(color = "gray90"),  # Customize major grid lines
+    panel.grid.minor = element_blank(),  # Remove minor grid lines
+    panel.border = element_blank(),  # Remove panel border
+    axis.line = element_line(color = "black"),  # Add axis lines for clarity
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotate x-axis text for better readability
+  )
+
+# Print the bar plot
+print(p_bar)
+
+ggsave("S002_barplot_mean_by_province_and_quarter.png", plot = p_bar, width = 10, height = 6, bg="white")
+
+summary(temp_total)
+## S003 ----
+
+
+temp<-combined_data |> filter(`Score de priorité C-HAT`>=12) |> group_by(Quarter, PROVINCE, TERRITOIRE) |> reframe(count=n())
+
+# try<-combined_data |> filter(`Score de priorité C-HAT`>=12 &  `Score d'accès humanitaire`<3)
+
+# try<-combined_data |> filter(TERRITOIRE=="Nyiragongo" & Quarter=="T1_2022" )
+
+# Pour le threshold: en fonction du nombre d'incident total ? 
+total_incidents_territoire<-combined_data |>
+  filter(`Score d'accès humanitaire`>3)|>
+  group_by(Quarter, PROVINCE, TERRITOIRE) |> 
+  reframe(total_incidents=n())
+
+temp2<-merge(temp,total_incidents_territoire, by=c("Quarter", "PROVINCE", "TERRITOIRE"), all.x=T )
+
+summary(temp2)
+
+# Convert count and total_incidents_territoire to numeric if needed
+temp2 <- temp2 %>%
+  mutate(
+    count = as.numeric(as.character(count)),  # Ensure count is numeric
+    total_incidents = as.numeric(as.character(total_incidents))  # Ensure total_incidents_territoire is numeric
+  )
+
+# Now calculate the ratio
+temp_total <- temp2 %>%
+  mutate(ratio = count / total_incidents)
+
+reset_s003<-temp_total |> filter(TERRITOIRE %in% c("Fizi", "Uvira", "Irumu") & Quarter=="T2_2024")
+
+
+
+temp_total_province<-temp_total|> 
+  group_by(Quarter, PROVINCE) |> 
+  reframe(mean=mean(ratio, na.rm=T))
+temp_total_province
+
+table(temp_total$Quarter)
+
+temp_total_province <- temp_total_province %>%
+  mutate(Quarter = factor(Quarter, levels = c("T1_2022", "T2_2022","T3_2022", "T4_2022", "T1_2023", "T2_2023","T3_2023", "T4_2023",
+                                              "T1_2024", "T2_2024", "T3_2024")))
+
+
+temp_total_province_t<-temp_total_province |> filter(!Quarter %in% c("T1_2022", "T2_2022"))
+# Create the ordered bar plot
+p_bar <- ggplot(temp_total_province_t, aes(x = Quarter, y = mean, fill = PROVINCE)) +
+  geom_bar(stat = "identity", position = position_dodge()) +  # Use position_dodge for side-by-side bars
+  labs(title =  paste("S003 # incidents CAT>12 / # incidents fort impact", "\n Moyenne par Province et Trimestre"),
+       x = "Trimestre",
+       y = "Moyenne") +
+  scale_fill_viridis_d() +  # Use viridis color scale
+  theme_minimal() +  # Minimal theme for a clean look
+  theme(
+    panel.grid.major = element_line(color = "gray90"),  # Customize major grid lines
+    panel.grid.minor = element_blank(),  # Remove minor grid lines
+    panel.border = element_blank(),  # Remove panel border
+    axis.line = element_line(color = "black"),  # Add axis lines for clarity
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotate x-axis text for better readability
+  )
+
+# Print the bar plot
+print(p_bar)
+
+ggsave("S003_barplot_mean_by_province_and_quarter.png", plot = p_bar, width = 10, height = 6, bg="white")
+
+summary(temp_total)
+
+table(combined_data$`Type d'incident`)
+
+
+## valeurs RESET  ----------------------------------------------------------
+
+reset_s001<-reset_s001 |> mutate(indicateur="S001") |> select(Quarter, TERRITOIRE, indicateur, ratio)
+reset_s002<-reset_s002 |> mutate(indicateur="S002")|> select(Quarter, TERRITOIRE, indicateur, ratio)
+reset_s003<-reset_s003 |> mutate(indicateur="S003")|> select(Quarter, TERRITOIRE, indicateur, ratio)
+
+reset_secu<-rbind(reset_s001, reset_s002, reset_s003)
+
+write.xlsx(reset_secu, "reset_secu.xlsx")
