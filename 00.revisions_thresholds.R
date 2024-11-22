@@ -81,7 +81,7 @@ combined_data<-merge(combined_data, ATLAS_MT_2024, by="TERRITOIRE", all.x=T)
 combined_data <- combined_data %>%
   mutate(across(contains("Score"), ~ as.numeric(as.character(.))))
 
-
+write_rds(combined_data, "Total_BD_conflict_4Ooct24.rds")
 
 # A001 -------------------------------------------------------
 
