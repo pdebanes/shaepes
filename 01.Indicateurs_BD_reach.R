@@ -157,13 +157,14 @@ complete_frame <- REACH_PAM %>%
 REACH_PAM <- complete_frame  %>%
   left_join(REACH_PAM, by = c("date", "province", "territoire", "annee", "quarter")) 
 
-## calcul par territoire quarter -------------------------------------------------------
+## calcul par province quarter -------------------------------------------------------
 REACH_PAM_prov_quart <- REACH_PAM %>%
   group_by(province, quarter, annee) %>%
   summarise(
-    median_prov = median(as.numeric(pam), na.rm = TRUE),  # Calculate the median of `meb`
+    median_prov = median(as.numeric(pam), na.rm = TRUE),  # Calculate the median of `meb`,
     .groups = "drop"  # Ensure the output is ungrouped after summarise
-  )
+  ) |> 
+  fill(median_prov, .direction = "up") 
 
 ## calcul par territoire quarter -------------------------------------------------------
 REACH_PAM_terr_quart <- REACH_PAM %>%

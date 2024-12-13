@@ -45,25 +45,11 @@ table(data_raw$territoire)
 table(ATLAS_MT_2024$TERRITOIRE)
 
 
-#  create frame -----------------------------------------------------------
+complete_frame_ind<-readRDS("complete_frame.rds")  |> mutate(annee=as.numeric(annee)) |> filter(!annee==2022  )
 
-
-province_territoire_mapping <- data_raw %>%
-  select(province, territoire) %>%
-  distinct()
-
-# Create a complete grid of all combinations
-complete_frame <- province_territoire_mapping %>%
-  expand_grid(
-    quarter = unique(data_raw$quarter)
-  )
-
-complete_frame_ind<-complete_frame |> unique() |> mutate(annee=as.character(sub(".*_", "", quarter)))
-
-saveRDS(complete_frame_ind, "complete_frame.rds")
-
-
-
+data_raw<-data_raw |> mutate(annee=as.numeric(annee),
+                             province=str_to_lower(province),
+                             territoire=str_to_lower(territoire))
 
 # A001 --------------------------------------------------------------------
 
@@ -361,6 +347,16 @@ tempH007<-merge(tempH007, ATLAS_MT_2024, by.x="territoire", by.y="TERRITOIRE", a
   select(province, territoire, annee, quarter,count, indicator )
 
 
+# E005D --------------------------------------------------------------------
+# table(data_raw$type_dincident)
+# tempE005D <- data_raw|>filter( !type_dincident=="Sécurisation des dispositifs explosifs" & grepl("mines|minier", description))|> 
+#   group_by(province, territoire, annee, quarter)|> 
+#   reframe(count=n()) |> ungroup() |>  unique() |> 
+#   mutate(indicator="E005D")
+# 
+# summary(tempE005D)
+
+
 
 # BD totale  --------------------------------------------------------------
 
@@ -398,12 +394,15 @@ combined_temp <- do.call(rbind, processed_tables)
 combined_temp <- as_tibble(combined_temp)
 
 
+combined_temp <-combined_temp |> mutate(annee=as.numeric(annee))
+
+
 # créer un frame pour tous les trimestres  --------------------------------
 
 
 
-combined_total <- complete_frame  %>%
-  left_join(combined_temp, by = c("province", "territoire",  "quarter")) |> 
+combined_total <- complete_frame_ind  %>%
+  left_join(combined_temp, by = c("annee", "province", "territoire",  "quarter")) |> 
   mutate( count = ifelse(is.na(count), 0, as.numeric(count)), 
           annee=ifelse(is.na(annee), sub(".*_", "", quarter),annee)) |> 
   filter(!quarter %in% c("T1_2022", "T2_2022"))

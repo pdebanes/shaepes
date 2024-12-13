@@ -47,7 +47,9 @@ MEB <- read_excel("C:/Users/MERCYCORPS/mercycorps.org/CD - Crisis Analysis Team 
 PAM <- read_excel("C:/Users/MERCYCORPS/mercycorps.org/CD - Crisis Analysis Team (CAT) - 01_Base de données/SHAEPES ALL/Monitoring REACH.xlsx", 
                                sheet = "PAM data") |> 
   select(c(1:5)) |>   
-  mutate(quarter = paste0("T", lubridate::quarter(Date), "_", lubridate::year(Date)),
+  mutate(
+    # Date=as.Date(Date,origin="1899-12-30"),         , 
+         quarter = paste0("T", lubridate::quarter(Date), "_", lubridate::year(Date)),
          annee=lubridate::year(Date)) |> 
   clean_names() |> select(-region) |> 
   rename(pam=cout_median_du_pma_total) |> 

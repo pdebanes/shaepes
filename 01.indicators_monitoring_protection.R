@@ -30,7 +30,7 @@ conflicted::conflicts_prefer(lubridate::year)
 source("C:/Users/MERCYCORPS/OneDrive - mercycorps.org/DRC-CAT/SHAEPES/shaepes/SHAEPES_functions.R")
 
 
-Monitoring_protection_raw <- read_excel("C:/Users/MERCYCORPS/mercycorps.org/CD Congo HAT - SHAEPES ALL/Monitoring protection.xlsx", 
+Monitoring_protection_raw <- read_excel("C:/Users/MERCYCORPS/mercycorps.org/CD - Crisis Analysis Team (CAT) - 01_Base de données/SHAEPES ALL/Monitoring protection.xlsx", 
                                     sheet = "Monitoring incidents")
 
 ATLAS_MT_2024<-readRDS("ATLAS_MT_2024.rds") |> mutate(TERRITOIRE=str_to_lower(TERRITOIRE)) |> clean_names()
