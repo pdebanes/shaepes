@@ -46,4 +46,6 @@ complete_frame <- province_territoire_mapping %>%
 
 complete_frame_ind<-complete_frame |> unique() |> mutate(annee=as.character(sub(".*_", "", quarter)))
 
+table(complete_frame_ind$territoire)
+
 saveRDS(complete_frame_ind, "complete_frame.rds")
