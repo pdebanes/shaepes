@@ -50,10 +50,10 @@ ituri <- read_excel("C:/Users/MERCYCORPS/mercycorps.org/CD - Crisis Analysis Tea
   select(-Trimestre)
 
 # head(ituri$Quarter)
-# maniema <- read_excel("C:/Users/MERCYCORPS/mercycorps.org/CD - Crisis Analysis Team (CAT) - 01_Base de données/BD_Conflict_V6.1.xlsx", 
-#                                sheet = "Maniema")|> as.data.frame() |> 
-#   mutate(Quarter = paste0("T", Trimestre, "_", ANNEE)) |> 
-#   select(-Trimestre) 
+# maniema <- read_excel("C:/Users/MERCYCORPS/mercycorps.org/CD - Crisis Analysis Team (CAT) - 01_Base de données/BD_Conflict_V6.1.xlsx",
+#                                sheet = "Maniema")|> as.data.frame() |>
+#   mutate(Quarter = paste0("T", Trimestre, "_", ANNEE)) |>
+#   select(-Trimestre)
 
 tanganyika <- read_excel("C:/Users/MERCYCORPS/mercycorps.org/CD - Crisis Analysis Team (CAT) - 01_Base de données/BD_Conflict_V6.1.xlsx", 
                                sheet = "Tanganyika")|> as.data.frame() |> 
@@ -104,9 +104,18 @@ write_rds(combined_data, "Total_BD_conflict.rds")
 
 # test power BI -----------------------------------------------------------
 
-
+# 
 # bd_conflict<-readRDS("Total_BD_conflict.rds")
-# test_powerBI_conflict<-bd_conflict |> filter(province %in% c("Ituri", "Sud-Kivu") & territoire %in% c("Mambasa", "Irumu", "Uvira", "Fizi")&
-#   annee %in% c(2022, 2023))
-# table(test_powerBI_conflict$territoire)
-# write.xlsx(test_powerBI_conflict, "test_powerBI_conflict.xlsx")
+# 
+# test_powerBI_conflict<-bd_conflict |> filter(province %in% c("Tanganyika") & score_dacces_humanitaire>3 & 
+#   annee=="2024" & mois=="12" & as.numeric(jour)<=15)
+# 
+# 
+# table(test_powerBI_conflict$cible_categorie)
+# 
+# # maniema<-maniema |> clean_names()
+# test_powerBI_conflict<-maniema |> filter(score_dacces_humanitaire>3 & 
+#                                                annee==2024 & mois==12 & jour<=15)
+# 
+# table(test_powerBI_conflict$cible_categorie)
+# # write.xlsx(test_powerBI_conflict, "test_powerBI_conflict.xlsx")
