@@ -66,6 +66,8 @@ ATLAS_MT_2024_full <- read_excel("C:/Users/MERCYCORPS/OneDrive - mercycorps.org/
                           sheet = "APERCU") 
 
 #petite hésitation sur Beni (ville) et Butembo (ville) => au final, je pense que ces deux sont comptés aussi dans leurs territoires respectifs
+# pour Beni => pas de ville dans BD conflict, comptée comme partie de Beni territoire
+# => on peut garder Beni ville? et faire un extract BD conflict pour Beni ville  
 ATLAS_MT_2024 <- ATLAS_MT_2024_full |> 
 select(Territoire, `Population (DPS 2023)`) |> rename(pop=2) |> mutate(Territoire=str_to_title(Territoire)) |> 
 filter(!str_detect(Territoire, "Ville")) |> 
@@ -73,8 +75,29 @@ mutate(Territoire=ifelse(Territoire=="Beni (Territoire / Oicha)", "Beni", Territ
 group_by(Territoire) |> summarise(pop_totale=sum(pop)) |> rename(TERRITOIRE=1)
 
 saveRDS(ATLAS_MT_2024, "ATLAS_MT_2024.rds")
-                         
-                         
+
+#par province
+# ATLAS_MT_2024_prov <- ATLAS_MT_2024_full |> 
+#   select(Province, `Population (DPS 2023)`) |> rename(pop=2) |> mutate(Province=str_to_lower(Province)) |> 
+#   group_by(Province) |> summarise(pop_totale=sum(pop)) |> rename(province=1)
+# 
+# saveRDS(ATLAS_MT_2024_prov, "ATLAS_MT_2024_prov.rds")
+
+#projection 2024
+population_2024_ZS <- read_excel("C:/Users/MERCYCORPS/Downloads/drc-hpc-projection-population-2024.xlsx") |> select(c(1:7))
+
+test<-population_2024_ZS |> 
+  select(Province, `Population 2024`) |> rename(pop=2) |> mutate(Province=str_to_lower(Province)) |> 
+  group_by(Province) |> summarise(pop_totale=sum(pop)) |> rename(province=1)
+test
+
+saveRDS(test, "2024_prov.rds")
+
+
+# #2020
+# cod_admpop_adm1_2020 <- read_csv("C:/Users/MERCYCORPS/mercycorps.org/CD - Crisis Analysis Team (CAT) - 01_Base de données/Population/cod_admpop_adm1_2020.csv")
+#                          
+#                          
 # create total DB ---------------------------------------------------------
 # Ensure all columns have the same type for each dataset
 nord_kivu <- nordkivu |> mutate(across(everything(), as.character))  # Convert all columns to character
@@ -104,6 +127,10 @@ write_rds(combined_data, "Total_BD_conflict.rds")
 
 # test power BI -----------------------------------------------------------
 
+# 
+# test<-Total_BD_conflict |> filter(territoire=="Lubero" & annee=="2024" & mois=="12") 
+# 
+# table(Total_BD_conflict$territoire)
 # 
 # bd_conflict<-readRDS("Total_BD_conflict.rds")
 # 

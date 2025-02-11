@@ -66,6 +66,9 @@ cod_rainfall_adm2_5ytd<-cod_rainfall_adm2_5ytd |>
     annee=lubridate::year(date)
   ) 
 
+complete_frame_ind<-readRDS("complete_frame.rds")  |> mutate(annee=as.numeric(annee)) |> filter(!annee==2022  )
+
+
 
 # EH003 -------------------------------------------------------------
 
@@ -122,6 +125,11 @@ data_env_comb<-data_env_comb |>
   pivot_longer(cols=!c(quarter, province, territoire), names_to = "indicator", values_to = "count")
 
 colnames(data_env_comb)
+
+
+# total frame -------------------------------------------------------------
+
+data_env_comb<-data_env_comb |> mutate(annee = as.numeric(sub(".*_(\\d{4})$", "\\1", quarter)))
 
 
 saveRDS(data_env_comb, "indicateurs_env.rds")

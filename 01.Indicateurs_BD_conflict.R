@@ -147,9 +147,12 @@ temp6<-data_raw|>filter(score_dacces_humanitaire>3) |> group_by(province, territ
 
 
 # A008 ----------------------
-temp08<-data_raw|>filter(categorie_dincident=="Obstacles_Acces_humanitaire") |> group_by(province, territoire, annee, quarter)|> 
+temp08<-data_raw|>filter(categorie_dincident=="Obstacles_Acces_humanitaire") |> 
+  group_by(province, territoire, annee, quarter)|> 
   reframe(count=n()) |> ungroup() |>  unique() |> 
   mutate(indicator="A008")
+
+
 
 #pas fan du threshold mais bon...
 
@@ -397,16 +400,22 @@ combined_temp <- as_tibble(combined_temp)
 combined_temp <-combined_temp |> mutate(annee=as.numeric(annee))
 
 
+list_ind<-combined_temp |> select(indicator) |> unique() |> pull()
+list_ind
+
+head(complete_frame_ind)
 # créer un frame pour tous les trimestres  --------------------------------
 
-
+complete_frame_ind <- complete_frame_ind %>%
+  expand_grid(indicator = list_ind)
 
 combined_total <- complete_frame_ind  %>%
-  left_join(combined_temp, by = c("annee", "province", "territoire",  "quarter")) |> 
+  left_join(combined_temp, by = c("annee", "province", "territoire",  "quarter", "indicator")) |> 
   mutate( count = ifelse(is.na(count), 0, as.numeric(count)), 
           annee=ifelse(is.na(annee), sub(".*_", "", quarter),annee)) |> 
   filter(!quarter %in% c("T1_2022", "T2_2022"))
 
+combined_total<-combined_total |> unique()
 
 saveRDS(combined_total, "indicateurs_BD_internes.rds")
 

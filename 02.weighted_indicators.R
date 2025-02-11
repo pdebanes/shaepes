@@ -21,7 +21,7 @@ for (package in libraries) {
 }
 conflicted::conflicts_prefer(dplyr::filter)
 
-indicators_raw<-read_rds("stacked_indicators.rds")
+indicators_raw<-read_rds("stacked_indicators.rds") |> filter(!is.na(indicator))
 
 
 
@@ -37,7 +37,7 @@ TEMPLATE_V5_SHAEPES_MONITORING <-TEMPLATE_V5_SHAEPES_MONITORING |>
 
 
 TEMPLATE_V5_SHAEPES_MONITORING <-TEMPLATE_V5_SHAEPES_MONITORING |> 
-  mutate(group=substr(code, 1, 1))
+  mutate(group=str_extract(code, "^[A-Z]+"))
 
 
 
@@ -74,7 +74,7 @@ temp <-temp |>
 
 # compute score by dimension ----------------------------------------------
 
-total_score_dim<-temp |>  group_by(province,territoire, annee, quarter, group) |> reframe(score_dim=sum(weighted_ind)) |> 
+total_score_dim<-temp |>  group_by(province,territoire, annee, quarter, group) |> reframe(score_dim=sum(weighted_ind, na.rm=T)) |> 
 mutate(
   dim_name = case_when(
     group == "S" ~ "Security",
@@ -113,5 +113,15 @@ total_shaepes<-total_score_dim |>
   group_by(province, territoire, annee, quarter) |> reframe(score_tot=round(sum(tot, na.rm=T), 2))
 
 
+# final datasets ----------------------------------------------------------
+
+
+
 saveRDS(total_score_dim, "shaepes_weighted_db.rds")
 saveRDS(total_shaepes, "shaepes_final_score.rds")
+
+
+# tests -------------------------------------------------------------------
+
+test_irumu<-total_score_dim |> filter(territoire=="irumu" & quarter=="T2_2024")
+test_irumu

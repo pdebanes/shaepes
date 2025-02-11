@@ -47,6 +47,15 @@ table(combined_data$territoire)
 
 combined_data<-combined_data |> mutate(territoire=str_to_lower(territoire))
 
+summary(combined_data)
+# test
+test<-combined_data |>filter(is.na(annee))
+
 # Optionally save the combined data
 saveRDS(combined_data, file = file.path(folder_path, "stacked_indicators.rds"))
 
+
+# test --------------------------------------------------------------------
+stacked_indicators<-read_rds("stacked_indicators.rds")
+test_irumu<-stacked_indicators |> filter(territoire=="irumu" & quarter=="T2_2024")
+test_irumu

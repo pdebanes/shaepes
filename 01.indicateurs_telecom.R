@@ -32,39 +32,90 @@ source("C:/Users/MERCYCORPS/OneDrive - mercycorps.org/DRC-CAT/SHAEPES/shaepes/SH
 telecom_raw <- read.xlsx("C:/Users/MERCYCORPS/mercycorps.org/CD - Crisis Analysis Team (CAT) - 01_Base de données/SHAEPES ALL/Telecom data T2 23.xlsx")
 complete_frame_ind<-readRDS("complete_frame.rds")  |> mutate(annee=as.numeric(annee)) 
 
-telecom_raw <-telecom_raw |> clean_names()
+telecom_raw <-telecom_raw |> clean_names()|>mutate(province=gsub(" ", "", str_to_lower(provinces)))
+
+ATLAS_MT_2024<-readRDS("2024_prov.rds") 
+complete_frame_ind<-readRDS("complete_frame.rds")  |> mutate(annee=as.numeric(annee)) |> filter(!annee==2022  )
+
+
+table(telecom_raw$province)
+table(ATLAS_MT_2024$province)
+
+# Define province name corrections
+province_corrections <- c(
+  "basuele" = "bas-uele",
+  "equateur" = "equateur",
+  "hautkatanga" = "haut-katanga",
+  "hautlomami" = "haut-lomami",
+  "hautuele" = "haut-uele",
+  "ituri" = "ituri",
+  "kasai" = "kasaï",
+  "kasaicentral" = "kasaï-central",
+  "kasaioriental" = "kasaï-oriental",
+  "kinshasa" = "kinshasa",
+  "kongocentral" = "kongo-central",
+  "kwango" = "kwango",
+  "kwilu" = "kwilu",
+  "lomami" = "lomami",
+  "lualaba" = "lualaba",
+  "mai-ndombe" = "maï-ndombe",
+  "maniema" = "maniema",
+  "mongala" = "mongala",
+  "nord-kivu" = "nord-kivu",
+  "nord-ubangi" = "nord-ubangi",
+  "sankuru" = "sankuru",
+  "sud-kivu" = "sud-kivu",
+  "sud-ubangi" = "sud-ubangi",
+  "tanganyika" = "tanganyika",
+  "tshopo" = "tshopo",
+  "tshuapa" = "tshuapa"
+)
+
+# Clean and standardize province names in telecom_raw
+telecom_raw <- telecom_raw %>%
+  clean_names() %>%
+  mutate(
+    province = gsub(" ", "", str_to_lower(province)), # Remove spaces and lowercase
+    province = recode(province, !!!province_corrections) # Apply corrections
+  )
+
+telecom_raw <-telecom_raw  |>  left_join(ATLAS_MT_2024, by="province") |> select(-provinces)
+
+
+# pop_test <- read.xlsx("C:/Users/MERCYCORPS/mercycorps.org/CD - Crisis Analysis Team (CAT) - 01_Base de données/Population/drc-hpc-projection-population-2024.xlsx")
+
+complete_frame_ind<-readRDS("complete_frame.rds")  |> mutate(annee=as.numeric(annee)) 
+
 
 # indicateurs -------------------------------------------------------------
 
-temp<-GTS_raw |> 
-  select(loc_1, safe_daily, cover_needs, resilience_impression, trust) |> 
-  pivot_longer(cols = -c(loc_1), names_to = "indicator") |> 
-  group_by(loc_1,indicator) |> 
-  reframe(count=mean(value, na.rm=T)) |> 
-  mutate(indicator = recode(indicator, 
-                            "safe_daily" = "S007", 
-                            "cover_needs" = "H011", 
-                            "resilience_impression" = "H012",
-                            "trust" = "H013")) |> 
-  rename(province=loc_1) |> 
-  mutate(province = recode(province, 
-                           "nordkivu" = "nord-kivu", 
-                           "sudkivu" = "sud-kivu")) 
-
-# Define the additional rows for Tanganyika
-tanganyika_rows <- tibble(
-  province = "tanganyika",
-  indicator = c("H011", "H012", "S007", "H013"),
-  count = NA_real_  # Set the mean_score as empty (NA)
-)
-
-# Add the new rows to the existing dataset
-temp <- bind_rows(temp, tanganyika_rows)
+# E007	Pourcentage moyen de couverture des services de télécommunications (ex. : réseau mobile) dans la province durant la période de référence.
+# E008	Pourcentage moyen de la population ayant accès aux services de mobile money dans la province durant la période de référence.
 
 
-complete<-complete_frame_ind |> left_join(temp, by="province")
+# revenu global / total revenu --------------------------------------------
 
-table(complete_frame$province)
+temp<-telecom_raw |> group_by(quarter, annee) |>  mutate(E007=nombre_dabonnes_mobile_abonnements_globaux/pop_totale,
+                                                  E008=nb_abonnes_mobile_money_abonnements_monnaie_mobile/pop_totale) |>
+  ungroup()|> select(quarter,annee, province,E007 , E008) 
+
+
+
+
+
+complete<-complete_frame_ind |> left_join(temp, by=c("annee", "quarter", "province"))
+
+complete<-complete |> arrange(annee, quarter, territoire, province) |> group_by(province, territoire) |> 
+  fill(E007, .direction = "downup") %>% 
+  fill(E008, .direction = "downup") %>% # Fill missing rolling_sd_4 values with the latest value
+  ungroup()
+
+
+complete<-complete |> 
+  pivot_longer(cols = -c(quarter,annee, province, territoire), names_to = "indicator", values_to = "count") 
+
+table(complete_frame_ind$province)
+table(temp$province)
 
 # 
-# saveRDS(complete, "indicateurs_BD_GTS.rds")
+saveRDS(complete, "indicateurs_BD_telecom.rds")
