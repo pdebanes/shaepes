@@ -31,18 +31,19 @@ Total_BD_conflict<-readRDS("Total_BD_conflict.rds")
 data_raw<-Total_BD_conflict |> mutate(province=str_to_lower(province),
                                       territoire=str_to_lower(territoire))
 
-ATLAS_MT_2024<-readRDS("ATLAS_MT_2024.rds") |> mutate(TERRITOIRE=str_to_lower(TERRITOIRE))
+ATLAS_MT_2024<-readRDS("ATLAS_MT_2024.rds")
 BD_deplacement<-readRDS("BD_deplacement.rds")
 
 table(BD_deplacement$province)
 BD_deplacement<-BD_deplacement |> mutate(province=str_to_lower(province),
-                                         territoire=str_to_lower(territoire),
-                                         territoire=ifelse(territoire=="beni-ville", "beni", territoire)) |> 
+                                         territoire=str_to_lower(territoire)
+                                         # territoire=ifelse(territoire=="beni-ville", "beni", territoire)
+                                         ) |> 
                                   filter(province %in% c("ituri", "sud-kivu", "nord-kivu", "tanganyika"))
 
 table(BD_deplacement$territoire)
 table(data_raw$territoire)
-table(ATLAS_MT_2024$TERRITOIRE)
+table(ATLAS_MT_2024$territoire)
 
 
 complete_frame_ind<-readRDS("complete_frame.rds")  |> mutate(annee=as.numeric(annee)) |> filter(!annee==2022  )
@@ -78,6 +79,8 @@ temp2 <- complete_frame_ind  %>%
   left_join(temp2, by = c("province", "territoire", "annee", "quarter")) |> 
   mutate(indicator="A002",
          count = ifelse(is.na(count), 0, as.numeric(count)))
+
+summary(temp2$count)
 
 # A004 --------------------------------------------------------------------
 # table(data_raw$categorie_dincident)
@@ -142,8 +145,19 @@ temp5 <- complete_frame_ind  %>%
 
 # table(ituri$TERRITOIRE)
 
-temp6<-data_raw|>filter(score_dacces_humanitaire>3) |> group_by(province, territoire, annee, quarter)|> 
-  reframe(count=sd(score_dacces_humanitaire, na.rm=T)) |> ungroup() |>  unique() |> mutate(indicator="A007")
+temp6<-data_raw|>filter(score_dacces_humanitaire>3) |> 
+  group_by(province, territoire, annee, quarter)|> 
+  reframe(count=sd(score_dacces_humanitaire, na.rm=T)) |> 
+  ungroup() |>  unique() |> mutate(indicator="A007")
+
+
+
+# table(ituri$TERRITOIRE)
+
+temp6<-data_raw|>filter(score_dacces_humanitaire>3) |> 
+  group_by(province, territoire, annee, quarter)|> 
+  reframe(count=sd(score_dacces_humanitaire, na.rm=T)) |> 
+  ungroup() |>  unique() |> mutate(indicator="A007")
 
 
 # A008 ----------------------
@@ -177,7 +191,7 @@ temp16<-data_raw|>filter(categorie_dincident=="Violations_droit_international_DI
 # P001 --------------------------------------------------------------------
 table(data_raw$auteur_categorie)
 
-tempP001<-data_raw|>filter(score_dacces_humanitaire>3 & auteur_categorie=="Societé civile / Groupe de Pression") |> 
+tempP001<-data_raw|>filter(score_dacces_humanitaire>3 & auteur_categorie=="Societé civile / Groupe de Pression")|> 
   group_by(province, territoire, annee, quarter)|> 
   reframe(count=n()*100000/pop_totale) |> ungroup() |>  unique() |> 
   mutate(indicator="P001")
@@ -191,13 +205,13 @@ tempP003<-data_raw|>filter(score_dacces_humanitaire>3 & cible_categorie=="Autori
   reframe(count=n()*100000/pop_totale) |> ungroup() |>  unique() |> 
   mutate(indicator="P003")
 
-summary(tempP003$count)
+summary(tempP003)
 
 # P006 --------------------------------------------------------------------
 table(data_raw$type_dincident)
 
 
-tempP006<-data_raw|>filter(type_dincident=="Justice populaire") |> 
+tempP006<-data_raw|>filter(type_dincident=="Justice populaire")|> 
   group_by(province, territoire, annee, quarter)|> 
   reframe(count=n()*100000/pop_totale) |> ungroup() |>  unique() |> 
   mutate(indicator="P006")
@@ -219,12 +233,14 @@ tempS001 <- data_raw %>%
     total_incidents = sum(high_score, na.rm = TRUE),
     count1 = sum(target_hdp, na.rm = TRUE),
     .groups = "drop"
-  ) %>%
+  )%>%
   mutate(
-    count = count1 / total_incidents,
+    count = ifelse(total_incidents>0, count1 / total_incidents, 0),
     indicator = "S001"
   ) %>%
   select(province, territoire, annee, quarter, count, indicator)
+
+summary(tempS001)
 
 # S002 --------------------------------------------------------------------
 
@@ -259,7 +275,8 @@ total_incidents_territoire<-data_raw |>
 
 tempS003<-merge(tempS003,total_incidents_territoire, by=c("province", "territoire", "annee", "quarter"), all.x=T )
 tempS003<-tempS003 |> mutate(count=count1/total_incidents) |> select(province, territoire, annee, quarter,count ) |> 
-  mutate(indicator="S003")
+  mutate(indicator="S003",
+         count=ifelse(is.na(count), 0, count))
 summary(tempS003)
 
 # S004 --------------------------------------------------------------------
@@ -269,7 +286,10 @@ table(data_raw$type_dincident)
 tempS004<-data_raw|>filter(type_dincident %in% c("Braquage et Embuscade", "Enlèvement", "Violation de propriété privée" )) |> 
   group_by(province, territoire, annee, quarter)|> 
   reframe(count=n()*100000/pop_totale) |> ungroup() |>  unique() |> 
-  mutate(indicator="S004")
+  mutate(indicator="S004",
+         count=ifelse(is.na(count), 0, count))
+
+summary(tempS004)
 
 # S005 --------------------------------------------------------------------
 table(data_raw$cible_categorie)
@@ -281,9 +301,12 @@ tempS005<-data_raw|>filter(cible_categorie %in% c("Population civile")) |>
   mutate(indicator="S005")
 
 
-test<-data_raw |> filter(categorie_dincident=="Operations_militaires") |> group_by(categorie_dincident, type_dincident, auteur_categorie) |> reframe(count=n()) |> 
-  pivot_wider(names_from = auteur_categorie, values_from = count)
-test<-data_raw |> filter(cible_categorie=="Population Civile")
+summary(tempS005)
+
+# test<-data_raw |> filter(categorie_dincident=="Operations_militaires") |> group_by(categorie_dincident, type_dincident, auteur_categorie) |> reframe(count=n()) |> 
+#   pivot_wider(names_from = auteur_categorie, values_from = count)
+# 
+# test<-data_raw |> filter(cible_categorie=="Population Civile")
 
 # S006 --------------------------------------------------------------------
 
@@ -294,6 +317,18 @@ tempS006<-data_raw|>filter(score_dacces_humanitaire<=3 & !categorie_dincident=="
   select(province, territoire, annee, quarter,count, indicator )
 
 
+# S008 --------------------------------------------------------------------
+table(data_raw$categorie_dincident)
+
+tempS008<-data_raw|>filter( categorie_dincident=="Violations_code_penal_civil_militaire") |> 
+  group_by(province, territoire, annee, quarter)|> 
+  reframe(count=n()*100000/pop_totale) |> ungroup() |>  unique() |> 
+  mutate(indicator="S008",
+         count=ifelse(is.na(count), 0, count)) |> 
+  select(province, territoire, annee, quarter,count, indicator )
+
+summary(tempS008)
+
 # EH001 -------------------------------------------------------------------
 
 table(BD_deplacement$eventReanson)
@@ -303,10 +338,9 @@ tempEH001<-BD_deplacement |> filter(eventReanson=="Catastrophe naturelle") |> se
   group_by(province, territoire, annee, quarter) |> 
   reframe(count1=sum(Deplacées, na.rm=T))
 
-tempEH001<-merge(tempEH001, ATLAS_MT_2024, by.x="territoire", by.y="TERRITOIRE", all.x=T) |> 
-  mutate(indicator="EH001")
-
-tempEH001<-tempEH001 |> mutate(count=count1*100000/pop_totale) |> 
+tempEH001<-merge(tempEH001, ATLAS_MT_2024, by.x="territoire", by.y="territoire", all.x=T) |> 
+  mutate(count=count1*100000/pop_totale,
+                               indicator="EH001") |> 
   select(province, territoire, annee, quarter,count, indicator ) |> 
   mutate(annee=as.character(annee))
 
@@ -318,7 +352,7 @@ tempH003<-BD_deplacement |> select(province, territoire, annee, quarter, Deplac�
   group_by(province, territoire, annee, quarter) |> 
   reframe(count1=sum(Deplacées, na.rm=T))
 
-tempH003<-merge(tempH003, ATLAS_MT_2024, by.x="territoire", by.y="TERRITOIRE", all.x=T) |> 
+tempH003<-merge(tempH003, ATLAS_MT_2024, by.x="territoire", by.y="territoire", all.x=T) |> 
   mutate(count=count1*100000/pop_totale) |> 
   mutate(indicator="H003", 
          annee=as.character(annee)) |> 
@@ -331,33 +365,38 @@ tempH005<-BD_deplacement |> select(province, territoire, annee, quarter, Retourn
   group_by(province, territoire, annee, quarter) |> 
   reframe(count1=sum(Retournées, na.rm=T))
 
-tempH005<-merge(tempH005, ATLAS_MT_2024, by.x="territoire", by.y="TERRITOIRE", all.x=T) |> 
+tempH005<-merge(tempH005, ATLAS_MT_2024, by.x="territoire", by.y="territoire", all.x=T) |> 
   mutate(count=count1*100000/pop_totale) |> 
   mutate(indicator="H005") |> 
   select(province, territoire, annee, quarter,count, indicator )
 
 
 # H007 --------------------------------------------------------------------
+
+table(BD_deplacement$description)
 table(BD_deplacement$`total ménages (depl + retour)`)
 tempH007<-BD_deplacement |> filter(description %in% c("En attente d'évaluation", "Diagnostic préliminaire")) |> 
 select(province, territoire, annee, quarter, `total ménages (depl + retour)`) |> 
   group_by(province, territoire, annee, quarter) |> 
   reframe(count1=sum(`total ménages (depl + retour)`, na.rm=T))
 
-tempH007<-merge(tempH007, ATLAS_MT_2024, by.x="territoire", by.y="TERRITOIRE", all.x=T) |> 
+tempH007<-merge(tempH007, ATLAS_MT_2024, by.x="territoire", by.y="territoire", all.x=T) |> 
   mutate(count=count1*100000/pop_totale) |> 
   mutate(indicator="H007") |> 
   select(province, territoire, annee, quarter,count, indicator )
 
 
-# E005D --------------------------------------------------------------------
-# table(data_raw$type_dincident)
-# tempE005D <- data_raw|>filter( !type_dincident=="Sécurisation des dispositifs explosifs" & grepl("mines|minier", description))|> 
-#   group_by(province, territoire, annee, quarter)|> 
-#   reframe(count=n()) |> ungroup() |>  unique() |> 
-#   mutate(indicator="E005D")
-# 
-# summary(tempE005D)
+# E005E --------------------------------------------------------------------
+table(data_raw$type_dincident)
+tempE005E <- data_raw|>filter( !type_dincident=="Sécurisation des dispositifs explosifs" & grepl("mines|minier", description))|>
+  group_by(province, territoire, annee, quarter)|>
+  reframe(count1=n()) |> ungroup() |>  unique()
+
+tempE005E<-merge(tempE005E, ATLAS_MT_2024, by.x="territoire", by.y="territoire", all.x=T) |> 
+  mutate(count=count1*100000/pop_totale) |> 
+  mutate(indicator="E005E") |> 
+  select(province, territoire, annee, quarter,count, indicator )
+summary(tempE005E)
 
 
 
@@ -419,4 +458,7 @@ combined_total<-combined_total |> unique()
 
 saveRDS(combined_total, "indicateurs_BD_internes.rds")
 
-table(combined_total$province)
+# table(indicateurs_BD_internes$indicator)
+
+test<-combined_total |> filter(indicator=="E005E") |> group_by(province, annee, quarter) |> reframe(sum=mean(count))
+summary(test)

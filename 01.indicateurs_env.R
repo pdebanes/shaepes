@@ -54,9 +54,12 @@ admincode <- read_excel("C:/Users/MERCYCORPS/mercycorps.org/CD - Crisis Analysis
   mutate(
     adm2_fr=str_to_lower(adm2_fr),
     adm1_fr=str_to_lower(adm1_fr)
-    ) |> 
-  # mutate(adm2_fr=ifelse(adm2_fr %in% c(	"beni territoire",  "beni (territoire / oicha)"), "beni", admin_2_label)) |> 
-    unique()
+    ) |>
+    unique() |> 
+  mutate(adm2_fr=ifelse(adm2_fr=="beni", "beni-ville", adm2_fr),
+         adm2_fr=ifelse(adm2_fr=="oïcha", "beni", adm2_fr))
+
+table(admincode$adm2_fr)
 
 cod_rainfall_adm2_5ytd<-merge(cod_rainfall_adm2_5ytd, admincode, by.x="ADM2_PCODE", by.y="adm2_pcode", all.x=T)
 
@@ -71,30 +74,34 @@ complete_frame_ind<-readRDS("complete_frame.rds")  |> mutate(annee=as.numeric(an
 
 
 # EH003 -------------------------------------------------------------
+  
+  tempEH003<-cod_rainfall_adm2_5ytd |> 
+    rename(province=adm1_fr, 
+           territoire=adm2_fr) |> 
+    mutate(rfh=as.numeric(rfh)) |> 
+    group_by(annee, quarter, province, territoire) |> 
+    mutate(precipitations_cum=sum(rfh, na.rm=T)) |> 
+    ungroup() |> 
+    group_by(annee, quarter, province) |> 
+    mutate(precipitations_cum_mean=abs(mean(precipitations_cum, na.rm=T) ))|> 
+    ungroup()  |> 
+    mutate(
+        EH003=precipitations_cum_mean-precipitations_cum
+      ) |> 
+    select(annee, quarter, province, territoire, EH003, precipitations_cum) |> 
+    unique() |> 
+    filter(!is.na(annee))
+  
+  table(tempEH003$territoire)
 
-tempEH003<-cod_rainfall_adm2_5ytd |> 
-  rename(province=adm1_fr, 
-         territoire=adm2_fr) |> 
-  mutate(rfh=as.numeric(rfh)) |> 
-  group_by(annee, quarter, province, territoire) |> 
-  mutate(precipitations_cum=sum(rfh, na.rm=T)) |> 
-  ungroup() |> 
-  group_by(annee, quarter, province) |> 
-  mutate(precipitations_cum_mean=mean(precipitations_cum, na.rm=T) )|> 
-  ungroup()  |> 
-  mutate(
-      EH003=precipitations_cum_mean-precipitations_cum
-    ) |> 
-  select(annee, quarter, province, territoire, EH003, precipitations_cum) |> 
-  unique() |> 
-  filter(!is.na(annee))
-
-table(tempEH003$province)
-
-
+  # tempEH003<-  tempEH003 |> 
+  # mutate(territoire=ifelse(territoire=="beni",  "beni-ville", territoire),
+  #                       territoire=ifelse(territoire=="oïcha",  "oicha", territoire)) 
 
 # autres indicateurs  -------------------------------------------------------------
 data_env <-data_env_raw |> rename(quarter=Trimestre) |> clean_names() |> 
+    mutate(territoire=str_to_lower(territoire), 
+           territoire=ifelse(territoire=="beni ville", "beni-ville", territoire)) |> 
   select(quarter, province, territoire,  starts_with("eh"), ndvi, pentes) |> 
   mutate(
     province=str_to_lower(province),
@@ -105,12 +112,14 @@ data_env <-data_env_raw |> rename(quarter=Trimestre) |> clean_names() |>
                          ifelse(province=="nord kivu", "nord-kivu",province))) |> 
   select(-eh_008_proxy_exposition_to_land_slopes) 
 
-table(data_env$province)
+table(data_env$territoire)
 
+
+data_env_comb_fr<-complete_frame_ind |> left_join(data_env, by=c("province", "territoire", "annee", "quarter"))
 
 # merge -------------------------------------------------------------------
+data_env_comb<-merge(tempEH003, data_env_comb_fr, by=c("annee", "quarter", "province", "territoire"), all.y=T) 
 
-data_env_comb<-merge(tempEH003, data_env, by=c("annee", "quarter", "province", "territoire"), all.y=T) |> filter(annee==2024)
 
 data_env_comb<-data_env_comb |> 
   mutate(
@@ -121,15 +130,64 @@ data_env_comb<-data_env_comb |>
          EH005=eh005_qualite_des_sources_deau_naturelles,
          EH007=eh007_quality_of_air
   ) |> 
-  select(quarter, province, territoire,  starts_with("eh")) |> 
-  pivot_longer(cols=!c(quarter, province, territoire), names_to = "indicator", values_to = "count")
+  select(annee, quarter, province, territoire,  starts_with("eh")) 
 
-colnames(data_env_comb)
+
+
 
 
 # total frame -------------------------------------------------------------
 
-data_env_comb<-data_env_comb |> mutate(annee = as.numeric(sub(".*_(\\d{4})$", "\\1", quarter)))
+data_env_comb<-data_env_comb |> mutate(annee = as.numeric(sub(".*_(\\d{4})$", "\\1", quarter)),
+                                       territoire=ifelse(territoire=="beni ville", "beni-ville", territoire))
 
 
-saveRDS(data_env_comb, "indicateurs_env.rds")
+
+
+complete <- data_env_comb |>
+  arrange(annee, quarter, territoire, province) |>
+  group_by(province, territoire) |>
+  fill(EH003, EH004, EH005, EH007, EH008, .direction = "downup") |>
+  ungroup()
+
+
+
+complete<-complete |>
+  pivot_longer(cols=!c(annee, quarter, province, territoire), names_to = "indicator", values_to = "count")
+
+colnames(data_env_comb)
+
+
+
+# table(data_env_comb$territoire)
+
+saveRDS(complete, "indicateurs_env.rds")
+
+
+
+
+
+
+
+
+
+
+
+
+# source rainfall ---------------------------------------------------------
+
+
+
+
+# https://data.humdata.org/dataset/cod-rainfall-subnational
+# 
+# 
+# 10 day rainfall [mm] (rfh)
+# rainfall 1-month rolling aggregation [mm] (r1h)
+# rainfall 3-month rolling aggregation [mm] (r3h)
+# rainfall long term average [mm] (rfh_avg)
+# rainfall 1-month rolling aggregation long term average [mm] (r1h_avg)
+# rainfall 3-month rolling aggregation long term average [mm] (r3h_avg)
+# rainfall anomaly [%] (rfq)
+# rainfall 1-month anomaly [%] (r1q)
+# rainfall 3-month anomaly [%] (r3q)

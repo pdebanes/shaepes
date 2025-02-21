@@ -61,20 +61,8 @@ tanganyika <- read_excel("C:/Users/MERCYCORPS/mercycorps.org/CD - Crisis Analysi
   mutate(Quarter = paste0("T", Trimestre, "_", ANNEE)) |> 
   select(-Trimestre) 
                          
- #we want the population of each territoire
-ATLAS_MT_2024_full <- read_excel("C:/Users/MERCYCORPS/OneDrive - mercycorps.org/DRC-CAT/FINAL_UPDATE_20240826_ATLAS_MT_2024.xlsx", 
-                          sheet = "APERCU") 
 
-#petite hésitation sur Beni (ville) et Butembo (ville) => au final, je pense que ces deux sont comptés aussi dans leurs territoires respectifs
-# pour Beni => pas de ville dans BD conflict, comptée comme partie de Beni territoire
-# => on peut garder Beni ville? et faire un extract BD conflict pour Beni ville  
-ATLAS_MT_2024 <- ATLAS_MT_2024_full |> 
-select(Territoire, `Population (DPS 2023)`) |> rename(pop=2) |> mutate(Territoire=str_to_title(Territoire)) |> 
-filter(!str_detect(Territoire, "Ville")) |> 
-mutate(Territoire=ifelse(Territoire=="Beni (Territoire / Oicha)", "Beni", Territoire)) |> 
-group_by(Territoire) |> summarise(pop_totale=sum(pop)) |> rename(TERRITOIRE=1)
-
-saveRDS(ATLAS_MT_2024, "ATLAS_MT_2024.rds")
+ATLAS_MT_2024<-readRDS("ATLAS_MT_2024.rds") 
 
 #par province
 # ATLAS_MT_2024_prov <- ATLAS_MT_2024_full |> 
@@ -87,8 +75,8 @@ saveRDS(ATLAS_MT_2024, "ATLAS_MT_2024.rds")
 population_2024_ZS <- read_excel("C:/Users/MERCYCORPS/Downloads/drc-hpc-projection-population-2024.xlsx") |> select(c(1:7))
 
 test<-population_2024_ZS |> 
-  select(Province, `Population 2024`) |> rename(pop=2) |> mutate(Province=str_to_lower(Province)) |> 
-  group_by(Province) |> summarise(pop_totale=sum(pop)) |> rename(province=1)
+  select(Territoire, `Population 2024`) |> rename(pop=2) |> mutate(Territoire=str_to_lower(Territoire)) |> 
+  group_by(Territoire) |> summarise(pop_totale=sum(pop)) |> rename(territoire=1)
 test
 
 saveRDS(test, "2024_prov.rds")
@@ -111,16 +99,49 @@ combined_data <- bind_rows(nord_kivu, sud_kivu_total, ituri_total, tanganyika_to
 combined_data<-combined_data%>% dplyr::select(where(not_all_na))
 colnames(combined_data)
 
-combined_data<-merge(combined_data, ATLAS_MT_2024, by="TERRITOIRE", all.x=T)
+combined_data<-combined_data |> clean_names() |> 
+  mutate(zone_de_sante=str_to_lower(zone_de_sante),
+        territoire=str_to_lower(territoire)
+        )
+
+
+# clean noms de territoire ------------------------------------------------
+list_lubero<-c("musienene" ,   "alimbongo" ,   "kayna"  , "lubero" ,  "masereka" , "biena" ,  "manguredjipa")
+list_beni<- c("mabalako" , "oicha" ,    "mutwanga",  "kalunguta", "kamango"  , "vuhovi",    "kyondo" ) 
+test<-combined_data |> filter(territoire=="lubero" & !zone_de_sante %in% c(list_lubero, "butembo"))
+test<-combined_data |> filter(territoire=="beni" & !zone_de_sante %in% c(list_beni, "beni"))
+
+combined_data<-combined_data |> 
+  mutate(territoire=ifelse(zone_de_sante %in% list_lubero, "lubero", territoire),
+         territoire=ifelse(zone_de_sante %in% list_beni, "beni", territoire))
+
+# combined_data |> filter(territoire=="nyiragongo") |> select(territoire, zone_de_sante) |> unique()
+# combined_data |> filter(territoire=="beni") |> select(territoire, zone_de_sante) |> unique()
+# combined_data |> filter(territoire=="lubero") |> select(territoire, zone_de_sante) |> unique()
+
+#I want to create the territory beni-ville
+combined_data<-combined_data |>
+  mutate(territoire=ifelse(territoire=="beni" & zone_de_sante=="beni", "beni-ville", territoire),
+         territoire=ifelse(zone_de_sante %in% c("butembo", "katwa"), "butembo", territoire),
+         territoire=ifelse(zone_de_sante %in% c("goma", "karisimbi"), "goma", territoire))
+
+
+
+
+combined_data<-merge(combined_data, ATLAS_MT_2024, by="territoire" , all.x=T)
 
 combined_data <- combined_data %>%
   mutate(across(contains("Score"), ~ as.numeric(as.character(.))))
 
-combined_data <-combined_data |> clean_names()
+combined_data <-combined_data 
 
 combined_data <-combined_data |> filter(!is.na(territoire))
 
 table(combined_data$quarter)
+
+table(combined_data$territoire)
+
+
 
 write_rds(combined_data, "Total_BD_conflict.rds")
 

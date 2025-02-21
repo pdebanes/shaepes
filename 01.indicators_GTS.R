@@ -64,7 +64,7 @@ temp <- bind_rows(temp, tanganyika_rows)
 
 complete<-complete_frame_ind |> left_join(temp, by="province")
 
-table(complete_frame$province)
+table(complete$province)
 
 
 saveRDS(complete, "indicateurs_BD_GTS.rds")

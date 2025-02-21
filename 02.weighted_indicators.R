@@ -33,13 +33,18 @@ TEMPLATE_V5_SHAEPES_MONITORING <- read_excel("C:/Users/MERCYCORPS/OneDrive - mer
 TEMPLATE_V5_SHAEPES_MONITORING <-TEMPLATE_V5_SHAEPES_MONITORING |> 
   select(-`Indicator Weight`, - `Indicator Impact Score`, -`Weighted Indicator Impact Score`) |> 
   clean_names() |> 
-  select(-result_value)
+  select(-result_value, -indicator_value_with_denominator)
 
 
 TEMPLATE_V5_SHAEPES_MONITORING <-TEMPLATE_V5_SHAEPES_MONITORING |> 
   mutate(group=str_extract(code, "^[A-Z]+"))
 
+#pb avec le dénominateur parce que quand rapporté à la population => déjà fait dans le code BD conflict, 
+#il faut juste reprendre le signe 
 
+TEMPLATE_V5_SHAEPES_MONITORING$denominator <- ifelse(TEMPLATE_V5_SHAEPES_MONITORING$denominator >= 0, 1, -1)
+
+head(TEMPLATE_V5_SHAEPES_MONITORING$denominator)
 
 # TEMPLATE_V5_SHAEPES_MONITORING <-TEMPLATE_V5_SHAEPES_MONITORING |> select(-indicator_status)
 
@@ -47,16 +52,21 @@ TEMPLATE_V5_SHAEPES_MONITORING <-TEMPLATE_V5_SHAEPES_MONITORING |>
 # merge with indicators db  -----------------------------------------------
 
 
-temp<-merge(indicators_raw, TEMPLATE_V5_SHAEPES_MONITORING, by.x= "indicator", by.y="code" )
+temp<-merge(indicators_raw, TEMPLATE_V5_SHAEPES_MONITORING, by.x= "indicator", by.y="code" )|> 
+  mutate(across(starts_with("threshold_level_"), ~ as.numeric(.)))
 
-
-
-temp <-temp |> 
-  mutate(ind_impact_score=ifelse(count/denominator<=threshold_level_1, 0, 
-                                 ifelse(count/denominator>threshold_level_1 & count/denominator<=threshold_level_2, 1, 
-                                        ifelse(count/denominator>threshold_level_2 & count/denominator<=threshold_level_3, 2,
-                                               ifelse(count/denominator>threshold_level_3 & count/denominator<=threshold_level_4, 3,
-                                                      ifelse(count/denominator>threshold_level_4 & count/denominator<=threshold_level_5, 4, 5)))))) 
+temp <- temp |> 
+  mutate(count_denum = round(count * denominator, 3),
+         ind_impact_score = case_when(
+           is.na(count_denum) ~ NA_real_,
+           # count_denum <= threshold_level_0 ~ 0
+           count_denum <= threshold_level_1 ~ 0,
+           count_denum > threshold_level_1 & count_denum <= threshold_level_2 ~ 1,
+           count_denum > threshold_level_2 & count_denum <= threshold_level_3 ~ 2,
+           count_denum > threshold_level_3 & count_denum <= threshold_level_4 ~ 3,
+           count_denum > threshold_level_4 & count_denum <= threshold_level_5 ~ 4,
+           TRUE ~ 5
+         ))
 
 # pondération = 1 / le nombre d'indicateurs
 temp <-temp |> 
@@ -123,5 +133,34 @@ saveRDS(total_shaepes, "shaepes_final_score.rds")
 
 # tests -------------------------------------------------------------------
 
+total_score_dim<-read_rds("shaepes_weighted_db.rds")
+total_shaepes<-read_rds("shaepes_final_score.rds")
+
+
+write.xlsx(total_score_dim, "total_score_dim_feb2025.xlsx")
+write.xlsx(total_shaepes, "total_shaepes_feb2025.xlsx")
+
+
+
+try<-total_shaepes |> filter(annee==2024)
+
+
 test_irumu<-total_score_dim |> filter(territoire=="irumu" & quarter=="T2_2024")
 test_irumu
+
+test_fizi_dim<-total_score_dim |> filter(territoire=="fizi" & quarter=="T2_2024")
+test_fizi_dim
+
+
+
+test_fizi_weight<-temp |> filter(territoire=="fizi" & quarter=="T2_2024")
+test_fizi_weight
+
+
+
+
+test_irumu_det<-indicators_raw |> filter(territoire=="irumu" & quarter=="T2_2024")
+test_irumu_det
+
+test_fizi_det<-indicators_raw |> filter(territoire=="fizi" & quarter=="T2_2024")
+test_fizi_det

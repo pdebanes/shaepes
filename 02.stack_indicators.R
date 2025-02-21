@@ -28,6 +28,13 @@ conflicted::conflicts_prefer(dplyr::filter)
 
 source("C:/Users/MERCYCORPS/OneDrive - mercycorps.org/DRC-CAT/SHAEPES/shaepes/SHAEPES_functions.R")
 
+
+#### Run all the indicators ####
+# script_files <- list.files(pattern = "^01.*\\.R$", full.names = TRUE)
+# for (script in script_files) {
+#   source(script)
+# }
+
 # get all the RDS with indicators
 
 # Define the folder containing the .rds files

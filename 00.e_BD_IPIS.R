@@ -40,7 +40,7 @@ data_raw_IPIS_visit <- read_csv("C:/Users/MERCYCORPS/mercycorps.org/CD - Crisis 
 complete_frame_ind<-readRDS("complete_frame.rds")  |> mutate(annee=as.numeric(annee)) 
 
 
-table(data_raw_IPIS_visit$province)
+table(data_raw_IPIS_visit$territoire)
 
 
 # more detailed database --------------------------------------------------
@@ -56,6 +56,8 @@ data_IPIS<-data_raw_IPIS_visit |>
   ) |> 
   select(annee, quarter, province, territoire,interference, armed_group1, frequency_armed_group1, armed_group2, frequency_armed_group2) |> 
   filter(annee>=2021 & interference==1 & province %in% c("nord-kivu", "sud-kivu", "tanganyika", "maniema", "ituri"))
+
+
   
 # indicators visit--------------------------------------------------
 
@@ -150,5 +152,5 @@ data_IPIS_frame_tot<-rbind(data_IPIS_frame, tempE005D)
 
 
 
-saveRDS(data_IPIS_frame, "indicateurs_IPIS_fixed.rds")
+saveRDS(data_IPIS_frame_tot, "indicateurs_IPIS_fixed.rds")
 

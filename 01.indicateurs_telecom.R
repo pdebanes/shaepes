@@ -34,7 +34,7 @@ complete_frame_ind<-readRDS("complete_frame.rds")  |> mutate(annee=as.numeric(an
 
 telecom_raw <-telecom_raw |> clean_names()|>mutate(province=gsub(" ", "", str_to_lower(provinces)))
 
-ATLAS_MT_2024<-readRDS("2024_prov.rds") 
+ATLAS_MT_2024<-readRDS("ATLAS_MT_2024.rds") 
 complete_frame_ind<-readRDS("complete_frame.rds")  |> mutate(annee=as.numeric(annee)) |> filter(!annee==2022  )
 
 
@@ -78,6 +78,8 @@ telecom_raw <- telecom_raw %>%
     province = gsub(" ", "", str_to_lower(province)), # Remove spaces and lowercase
     province = recode(province, !!!province_corrections) # Apply corrections
   )
+
+ATLAS_MT_2024<-ATLAS_MT_2024 |> group_by(province) |> reframe(pop_totale=sum(pop_totale))
 
 telecom_raw <-telecom_raw  |>  left_join(ATLAS_MT_2024, by="province") |> select(-provinces)
 
